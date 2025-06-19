@@ -1,0 +1,7 @@
+.deps/
+results/
+**/*.o
+**/*.so
+regression.diffs
+regression.out
+latest-changes.md

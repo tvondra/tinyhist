@@ -1,0 +1,35 @@
+{
+   "name": "tinyhist",
+   "abstract": "tinyhist, a tiny space-efficient approximate histogram with growing bucket sizes.",
+   "description": "This PostgreSQL extension implements tinyhist, a data structure for approximate space-efficient histograms. Each histogram is only 32B, can be calculated in parallel, etc.",
+   "version": "1.0.0",
+   "maintainer": "Tomas Vondra <tomas@vondra.me>",
+   "license": "bsd",
+   "prereqs": {
+      "runtime": {
+         "requires": {
+            "PostgreSQL": "13.0.0"
+         }
+      }
+   },
+   "provides": {
+     "tinyhist": {
+       "file": "sql/tinyhist--1.0.0.sql",
+       "docfile" : "README.md",
+       "version": "1.0.0"
+     }
+   },
+   "resources": {
+      "repository": {
+        "url":  "https://github.com/tvondra/tinyhist.git",
+        "web":  "http://github.com/tvondra/tinyhist",
+        "type": "git"
+      }
+   },
+   "tags" : ["histogram", "aggregate", "data type"],
+   "meta-spec": {
+      "version": "1.0.0",
+      "url": "http://pgxn.org/meta/spec.txt"
+   },
+   "release_status" : "unstable"
+}

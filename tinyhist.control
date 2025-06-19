@@ -1,0 +1,3 @@
+comment = 'Provides a small histogram.'
+default_version = '1.0.0'
+relocatable = true

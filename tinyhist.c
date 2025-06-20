@@ -404,6 +404,7 @@ tinyhist_append_array(PG_FUNCTION_ARGS)
 	tinyhist_t *state;
 	ArrayType  *array;
 	Datum	   *values;
+	bool	   *nulls;
 	int			nvalues;
 
 	/*
@@ -428,11 +429,22 @@ tinyhist_append_array(PG_FUNCTION_ARGS)
 
 	array = PG_GETARG_ARRAYTYPE_P(1);
 
-	deconstruct_array_builtin(array, FLOAT8OID, &values, NULL, &nvalues);
+	deconstruct_array(array, FLOAT8OID,
+	/* hard-wired info on type float8 */
+					  sizeof(float8), FLOAT8PASSBYVAL, TYPALIGN_DOUBLE,
+					  &values,
+					  &nulls,
+					  &nvalues);
 
 	for (int i = 0; i < nvalues; i++)
 	{
-		double	value = DatumGetFloat8(values[i]);
+		double	value;
+
+		/* ignore NULL values */
+		if (nulls[i])
+			continue;
+
+		value = DatumGetFloat8(values[i]);
 
 		if (hist_sample(state))
 		{

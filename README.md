@@ -250,7 +250,7 @@ At the moment, the extension only supports `double precision` values, but
 it should not be very difficult to extend it to other numeric types (e.g.
 integer and/or floating point). The ranges etc. should however remain int,
 for efficiency reasons, so it's probably simpler to just cast values when
-building the hisgogram.
+building the histogram.
 
 
 ## License

@@ -29,26 +29,26 @@ CREATE TYPE tinyhist (
     INTERNALLENGTH = 32
 );
 
-CREATE OR REPLACE FUNCTION tinyhist_append(hist tinyhist, val double precision)
+CREATE OR REPLACE FUNCTION tinyhist_add(hist tinyhist, val double precision)
     RETURNS tinyhist
-    AS 'tinyhist', 'tinyhist_append'
+    AS 'tinyhist', 'tinyhist_add'
     LANGUAGE C IMMUTABLE;
 
 CREATE OPERATOR + (
     LEFTARG = tinyhist,
     RIGHTARG = double precision,
-    FUNCTION = tinyhist_append
+    FUNCTION = tinyhist_add
 );
 
-CREATE OR REPLACE FUNCTION tinyhist_append(hist tinyhist, val double precision[])
+CREATE OR REPLACE FUNCTION tinyhist_add(hist tinyhist, val double precision[])
     RETURNS tinyhist
-    AS 'tinyhist', 'tinyhist_append_array'
+    AS 'tinyhist', 'tinyhist_add_array'
     LANGUAGE C IMMUTABLE;
 
 CREATE OPERATOR + (
     LEFTARG = tinyhist,
     RIGHTARG = double precision[],
-    FUNCTION = tinyhist_append
+    FUNCTION = tinyhist_add
 );
 
 CREATE OR REPLACE FUNCTION tinyhist_accum(hist tinyhist, val double precision)

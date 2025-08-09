@@ -31,13 +31,13 @@ static int bucket_offset[] = {0, 8, 17, 27, 38, 50, 63, 77, 92, 108, 125, 143, 1
 typedef struct tinyhist_t {
 	uint8		sample:4;		/* sampling rate for buckets (2^sample) */
 	uint8		unit:4;			/* size of the smallest large (2^unit) */
-	uint8		data[31];		/* 30 buckets is enough for ~1B range */
+	uint8		data[31];		/* buffer storing the buckets */
 } tinyhist_t;
 
 /* prototypes */
 PG_FUNCTION_INFO_V1(tinyhist_accum);
-PG_FUNCTION_INFO_V1(tinyhist_append);
-PG_FUNCTION_INFO_V1(tinyhist_append_array);
+PG_FUNCTION_INFO_V1(tinyhist_add);
+PG_FUNCTION_INFO_V1(tinyhist_add_array);
 PG_FUNCTION_INFO_V1(tinyhist_buckets);
 PG_FUNCTION_INFO_V1(tinyhist_count);
 
@@ -48,8 +48,8 @@ PG_FUNCTION_INFO_V1(tinyhist_recv);
 PG_FUNCTION_INFO_V1(tinyhist_combine);
 
 Datum tinyhist_accum(PG_FUNCTION_ARGS);
-Datum tinyhist_append(PG_FUNCTION_ARGS);
-Datum tinyhist_append_array(PG_FUNCTION_ARGS);
+Datum tinyhist_add(PG_FUNCTION_ARGS);
+Datum tinyhist_add_array(PG_FUNCTION_ARGS);
 Datum tinyhist_buckets(PG_FUNCTION_ARGS);
 Datum tinyhist_count(PG_FUNCTION_ARGS);
 
@@ -342,7 +342,7 @@ tinyhist_accum(PG_FUNCTION_ARGS)
  * for histogram aggregate.
  */
 Datum
-tinyhist_append(PG_FUNCTION_ARGS)
+tinyhist_add(PG_FUNCTION_ARGS)
 {
 	tinyhist_t *state;
 	double		value;
@@ -399,7 +399,7 @@ tinyhist_append(PG_FUNCTION_ARGS)
  * for histogram aggregate.
  */
 Datum
-tinyhist_append_array(PG_FUNCTION_ARGS)
+tinyhist_add_array(PG_FUNCTION_ARGS)
 {
 	tinyhist_t *state;
 	ArrayType  *array;

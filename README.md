@@ -72,17 +72,17 @@ sample rate, or something like that? Different tradeoff.
 The extension provides two functions, which you can use to add values into
 a histogram:
 
-* `tinyhist_append(tinyhist hist, value double precision)`
+* `tinyhist_add(tinyhist hist, value double precision)`
 
-* `tinyhist_append(tinyhist hist, values double precision[])`
+* `tinyhist_add(tinyhist hist, values double precision[])`
 
 That is, you can run something like this:
 
 ```
 CREATE TABLE t (h tinyhist);
 INSERT INTO t VALUES (NULL);
-UPDATE t SET h = tinyhist_append(h, 123);
-UPDATE t SET h = tinyhist_append(h, ARRAY[456, 789]);
+UPDATE t SET h = tinyhist_add(h, 123);
+UPDATE t SET h = tinyhist_add(h, ARRAY[456, 789]);
 ```
 
 The extension also adds `+` operators backed by these functions, so you

@@ -290,7 +290,7 @@ tinyhist_accum(PG_FUNCTION_ARGS)
 
 	/* cannot be called directly because of internal-type argument */
 	if (!AggCheckCallContext(fcinfo, &aggcontext))
-		elog(ERROR, "tinyhist_add called in non-aggregate context");
+		elog(ERROR, "tinyhist_accum called in non-aggregate context");
 
 	/*
 	 * We want to skip NULL values altogether - we return either the existing

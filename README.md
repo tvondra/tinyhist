@@ -33,8 +33,7 @@ Of course, the data distribution may not be compact, in which case the
 buckets get full at different times.
 
 
-histogram range
----------------
+## Histogram range
 
 A histogram with a fixed number of buckets can represent only a limited
 range of values. The 16th bucket is as wide as the 1st after 15 rounds
@@ -83,8 +82,7 @@ use case for this is tracking e.g. query timings in `ms`, and 1B ms is
 roughly 12 days. You should not have very many queries taking that long.*
 
 
-histogram sampling
-------------------
+## Histogram sampling
 
 The buckets are very small, with only a couple bits per bucket, and can
 get full easily. The first bucket is only 8 bits, so the maximum value
@@ -110,7 +108,7 @@ should be customizable, similar to how we allow setting precision/scale
 for numeric.*
 
 
-## Usage
+## Basic usage
 
 The extension provides two functions, which you can use to add values into
 a histogram:
@@ -175,8 +173,7 @@ SELECT * FROM tinyhist_buckets((SELECT h FROM hist));
 ```
 
 
-Notes
------
+## Notes
 
 At the moment, the extension only supports `double precision` values, but
 it should not be very difficult to extend it to other numeric types (e.g.
@@ -185,8 +182,8 @@ for efficiency reasons, so it's probably simpler to just cast values when
 building the hisgogram.
 
 
-License
--------
+## License
+
 This software is distributed under the terms of PostgreSQL license.
 See LICENSE or http://www.opensource.org/licenses/bsd-license.php for
 more details.

@@ -14,9 +14,13 @@ SELECT * FROM tinyhist_info((SELECT tinyhist_agg(i) FROM generate_series(1,10000
 
 SELECT * FROM tinyhist_buckets((SELECT tinyhist_agg(i) FROM generate_series(1,10000) s(i)));
 
+SELECT (SELECT tinyhist_agg(i) FROM generate_series(1,5000) s(i)) + (SELECT tinyhist_agg(i) FROM generate_series(5001,10000) s(i));
+
 /* wider range */
 SELECT tinyhist_agg(i*10) FROM generate_series(1,10000) s(i);
 
 SELECT * FROM tinyhist_info((SELECT tinyhist_agg(i*10) FROM generate_series(1,10000) s(i)));
 
 SELECT * FROM tinyhist_buckets((SELECT tinyhist_agg(i*10) FROM generate_series(1,10000) s(i)));
+
+SELECT (SELECT tinyhist_agg(i * 10) FROM generate_series(1,5000) s(i)) + (SELECT tinyhist_agg(i * 10) FROM generate_series(5001,10000) s(i));

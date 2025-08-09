@@ -51,6 +51,17 @@ CREATE OPERATOR + (
     FUNCTION = tinyhist_add
 );
 
+CREATE OR REPLACE FUNCTION tinyhist_add(hist1 tinyhist, hist2 tinyhist)
+    RETURNS tinyhist
+    AS 'tinyhist', 'tinyhist_add_hist'
+    LANGUAGE C IMMUTABLE;
+
+CREATE OPERATOR + (
+    LEFTARG = tinyhist,
+    RIGHTARG = tinyhist,
+    FUNCTION = tinyhist_add
+);
+
 CREATE OR REPLACE FUNCTION tinyhist_accum(hist tinyhist, val double precision)
     RETURNS tinyhist
     AS 'tinyhist', 'tinyhist_accum'

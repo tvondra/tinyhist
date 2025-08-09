@@ -33,6 +33,12 @@ SELECT * FROM tinyhist_buckets((SELECT tinyhist_agg(i) FROM generate_series(1,10
            15 |        16384 |        32768 |        16384 |            0 |           0 |              0
 (16 rows)
 
+SELECT (SELECT tinyhist_agg(i) FROM generate_series(1,5000) s(i)) + (SELECT tinyhist_agg(i) FROM generate_series(5001,10000) s(i));
+                                  ?column?                                   
+-----------------------------------------------------------------------------
+ {0, 0, 1, 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 1808, 0}
+(1 row)
+
 /* wider range */
 SELECT tinyhist_agg(i*10) FROM generate_series(1,10000) s(i);
                                 tinyhist_agg                                
@@ -66,4 +72,10 @@ SELECT * FROM tinyhist_buckets((SELECT tinyhist_agg(i*10) FROM generate_series(1
            14 |        32768 |        65536 |        32768 |         3277 |      0.3277 |  4.000244140625e-05
            15 |        65536 |       131072 |        65536 |         3447 |      0.3447 | 2.1038818359375e-05
 (16 rows)
+
+SELECT (SELECT tinyhist_agg(i * 10) FROM generate_series(1,5000) s(i)) + (SELECT tinyhist_agg(i * 10) FROM generate_series(5001,10000) s(i));
+                                  ?column?                                  
+----------------------------------------------------------------------------
+ {0, 2, 0, 0, 1, 2, 3, 6, 13, 26, 51, 102, 205, 410, 819, 1638, 3277, 3447}
+(1 row)
 

@@ -196,6 +196,12 @@ Adds an array of value to `hist`, returning the modified histogram.
 a new one is created.
 
 
+### `tinyhist_add(hist1, hist2)`
+
+Merges two histograms `hist1` and `hist2` into a single histogram. If
+both histograms are empty (`NULL`), returns `NULL`.
+
+
 ### `tinyhist_info(hist)`
 
 Returns a record with information about the histogram `hist`. The output
@@ -238,10 +244,20 @@ parallel query.
 
 ## Operators
 
-### `histogram + value` / `histogram + value[]`
 
-These operators are equivalent to functions `tinyhist_add(hist, value)`
-and `tinyhist_add(hist, values[])`.
+### `histogram + value`
+
+Equivalent to function `tinyhist_add(hist, value)`.
+
+
+### `histogram + value[]`
+
+Equivalent to function `tinyhist_add(hist, values[])`.
+
+
+### `histogram + histogram`
+
+Equivalent to function `tinyhist_add(hist, hist)`.
 
 
 ## Notes

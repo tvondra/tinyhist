@@ -38,6 +38,7 @@ typedef struct tinyhist_t {
 PG_FUNCTION_INFO_V1(tinyhist_accum);
 PG_FUNCTION_INFO_V1(tinyhist_add);
 PG_FUNCTION_INFO_V1(tinyhist_add_array);
+PG_FUNCTION_INFO_V1(tinyhist_add_hist);
 PG_FUNCTION_INFO_V1(tinyhist_buckets);
 PG_FUNCTION_INFO_V1(tinyhist_info);
 
@@ -50,6 +51,7 @@ PG_FUNCTION_INFO_V1(tinyhist_combine);
 Datum tinyhist_accum(PG_FUNCTION_ARGS);
 Datum tinyhist_add(PG_FUNCTION_ARGS);
 Datum tinyhist_add_array(PG_FUNCTION_ARGS);
+Datum tinyhist_add_hist(PG_FUNCTION_ARGS);
 Datum tinyhist_buckets(PG_FUNCTION_ARGS);
 Datum tinyhist_info(PG_FUNCTION_ARGS);
 
@@ -175,6 +177,14 @@ hist_adjust_unit(tinyhist_t *hist)
 	bucket_set(hist, (HISTOGRAM_BUCKETS - 1), 0);
 
 	hist->unit++;
+}
+
+static tinyhist_t *
+hist_copy(tinyhist_t *h)
+{
+	tinyhist_t *r = palloc(sizeof(tinyhist_t));
+	memcpy(r, h, sizeof(tinyhist_t));
+	return r;
 }
 
 /*
@@ -661,6 +671,100 @@ tinyhist_combine(PG_FUNCTION_ARGS)
 	}
 
 	PG_RETURN_POINTER(dst);
+}
+
+Datum
+tinyhist_add_hist(PG_FUNCTION_ARGS)
+{
+	tinyhist_t	   *hist1;
+	tinyhist_t	   *hist2;
+
+	int				unit;
+	int				sample;
+
+	/* If both are NULL, return NULL. Otherwise return the non-NULL one. */
+	if (PG_ARGISNULL(0) || PG_ARGISNULL(1))
+	{
+		if (!PG_ARGISNULL(0))
+			PG_RETURN_POINTER(PG_GETARG_POINTER(0));
+		else if (!PG_ARGISNULL(1))
+			PG_RETURN_POINTER(PG_GETARG_POINTER(1));
+		else
+			PG_RETURN_NULL();
+	}
+
+	/* both histograms are non-NULL */
+	hist1 = (tinyhist_t *) PG_GETARG_POINTER(1);
+	hist2 = (tinyhist_t *) PG_GETARG_POINTER(0);
+
+	/*
+	 * Copy the histograms, so that we can modify them when adjusting the
+	 * unit/sample rate. The copy of hist1 is used for the result.
+	 *
+	 * XXX We could try without the copy, and only do the copy if actually
+	 * needed.
+	 */
+	hist1 = hist_copy(hist1);
+	hist2 = hist_copy(hist2);
+
+	/*
+	 * XXX Should we do this in a particular order? E.g. unit first and
+	 * then sample rate, or the other way around? Or it doesn't matter?
+	 */
+	sample = Max(hist1->sample, hist2->sample);
+
+	while (hist1->sample < sample)
+		hist_adjust_sample(hist1);
+
+	while (hist2->sample < sample)
+		hist_adjust_sample(hist2);
+
+	unit = Max(hist1->unit, hist2->unit);
+
+	while (hist1->unit < unit)
+		hist_adjust_unit(hist1);
+
+	while (hist2->unit < unit)
+		hist_adjust_unit(hist2);
+
+	Assert(hist1->sample == hist2->sample);
+	Assert(hist1->unit == hist2->unit);
+
+	/*
+	 * Now check we can merge the histograms, with all counts fitting into
+	 * the buckets. If not, adjust the sample once more.
+	 */
+	{
+		bool	adjust_sample = false;
+
+		for (int i = 0; i < HISTOGRAM_BUCKETS; i++)
+		{
+			int	cnt = bucket_get(hist1,i) + bucket_get(hist2,i);
+
+			if (cnt > bucket_maxcount(i))
+			{
+				adjust_sample = true;
+				break;
+			}
+		}
+
+		if (adjust_sample)
+		{
+			hist_adjust_sample(hist1);
+			hist_adjust_sample(hist2);
+		}
+	}
+
+	/* OK, time to do the merge */
+	for (int i = 0; i < HISTOGRAM_BUCKETS; i++)
+	{
+		int	cnt = bucket_get(hist1,i) + bucket_get(hist2,i);
+
+		bucket_set(hist1, i, cnt);
+	}
+
+	/* return hist1 */
+	PG_RETURN_POINTER(hist1);
 }
 
 static TupleDesc

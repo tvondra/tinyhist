@@ -192,7 +192,7 @@ created.
 ### `tinyhist_add(hist, values[])`
 
 Adds an array of value to `hist`, returning the modified histogram.
-`NULL` vaalues are ignored. If the histogram is empty (`hist = NULL`),
+`NULL` values are ignored. If the histogram is empty (`hist = NULL`),
 a new one is created.
 
 

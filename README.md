@@ -242,6 +242,14 @@ The function is parallel-safe, i.e. the histograms can be built by a
 parallel query.
 
 
+### `tinyhist_agg(hist)`
+
+An aggregate function, merging pre-calculated histograms values.
+
+The function is parallel-safe, i.e. the histograms can be built by a
+parallel query.
+
+
 ## Operators
 
 

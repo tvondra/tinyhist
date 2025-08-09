@@ -67,6 +67,11 @@ CREATE OR REPLACE FUNCTION tinyhist_accum(hist tinyhist, val double precision)
     AS 'tinyhist', 'tinyhist_accum'
     LANGUAGE C IMMUTABLE;
 
+CREATE OR REPLACE FUNCTION tinyhist_accum_hist(hist1 tinyhist, hist2 tinyhist)
+    RETURNS tinyhist
+    AS 'tinyhist', 'tinyhist_accum_hist'
+    LANGUAGE C IMMUTABLE;
+
 CREATE OR REPLACE FUNCTION tinyhist_combine(hist_a tinyhist, hist_b tinyhist)
     RETURNS tinyhist
     AS 'tinyhist', 'tinyhist_combine'
@@ -74,6 +79,13 @@ CREATE OR REPLACE FUNCTION tinyhist_combine(hist_a tinyhist, hist_b tinyhist)
 
 CREATE AGGREGATE tinyhist_agg(double precision) (
     SFUNC = tinyhist_accum,
+    STYPE = tinyhist,
+    COMBINEFUNC = tinyhist_combine,
+    PARALLEL = SAFE
+);
+
+CREATE AGGREGATE tinyhist_agg(tinyhist) (
+    SFUNC = tinyhist_accum_hist,
     STYPE = tinyhist,
     COMBINEFUNC = tinyhist_combine,
     PARALLEL = SAFE

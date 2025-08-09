@@ -36,6 +36,7 @@ typedef struct tinyhist_t {
 
 /* prototypes */
 PG_FUNCTION_INFO_V1(tinyhist_accum);
+PG_FUNCTION_INFO_V1(tinyhist_accum_hist);
 PG_FUNCTION_INFO_V1(tinyhist_add);
 PG_FUNCTION_INFO_V1(tinyhist_add_array);
 PG_FUNCTION_INFO_V1(tinyhist_add_hist);
@@ -49,6 +50,7 @@ PG_FUNCTION_INFO_V1(tinyhist_recv);
 PG_FUNCTION_INFO_V1(tinyhist_combine);
 
 Datum tinyhist_accum(PG_FUNCTION_ARGS);
+Datum tinyhist_accum_hist(PG_FUNCTION_ARGS);
 Datum tinyhist_add(PG_FUNCTION_ARGS);
 Datum tinyhist_add_array(PG_FUNCTION_ARGS);
 Datum tinyhist_add_hist(PG_FUNCTION_ARGS);
@@ -185,6 +187,71 @@ hist_copy(tinyhist_t *h)
 	tinyhist_t *r = palloc(sizeof(tinyhist_t));
 	memcpy(r, h, sizeof(tinyhist_t));
 	return r;
+}
+
+static tinyhist_t *
+hist_merge(tinyhist_t *hist1, tinyhist_t *hist2)
+{
+	int		sample,
+			unit;
+
+	/*
+	 * XXX Should we do this in a particular order? E.g. unit first and
+	 * then sample rate, or the other way around? Or it doesn't matter?
+	 */
+	sample = Max(hist1->sample, hist2->sample);
+
+	while (hist1->sample < sample)
+		hist_adjust_sample(hist1);
+
+	while (hist2->sample < sample)
+		hist_adjust_sample(hist2);
+
+	unit = Max(hist1->unit, hist2->unit);
+
+	while (hist1->unit < unit)
+		hist_adjust_unit(hist1);
+
+	while (hist2->unit < unit)
+		hist_adjust_unit(hist2);
+
+	Assert(hist1->sample == hist2->sample);
+	Assert(hist1->unit == hist2->unit);
+
+	/*
+	 * Now check we can merge the histograms, with all counts fitting into
+	 * the buckets. If not, adjust the sample once more.
+	 */
+	{
+		bool	adjust_sample = false;
+
+		for (int i = 0; i < HISTOGRAM_BUCKETS; i++)
+		{
+			int	cnt = bucket_get(hist1,i) + bucket_get(hist2,i);
+
+			if (cnt > bucket_maxcount(i))
+			{
+				adjust_sample = true;
+				break;
+			}
+		}
+
+		if (adjust_sample)
+		{
+			hist_adjust_sample(hist1);
+			hist_adjust_sample(hist2);
+		}
+	}
+
+	/* OK, time to do the merge */
+	for (int i = 0; i < HISTOGRAM_BUCKETS; i++)
+	{
+		int	cnt = bucket_get(hist1,i) + bucket_get(hist2,i);
+
+		bucket_set(hist1, i, cnt);
+	}
+
+	return hist1;
 }
 
 /*
@@ -343,6 +410,57 @@ tinyhist_accum(PG_FUNCTION_ARGS)
 		 */
 		bucket_set(state, bucket, bucket_get(state, bucket) + 1);
 	}
+
+	PG_RETURN_POINTER(state);
+}
+
+/*
+ * Add a value to the histogram (create one if needed). Transition function
+ * for tinyhist aggregate.
+ */
+Datum
+tinyhist_accum_hist(PG_FUNCTION_ARGS)
+{
+	tinyhist_t *state;
+	tinyhist_t *value;
+
+	MemoryContext aggcontext;
+
+	/* cannot be called directly because of internal-type argument */
+	if (!AggCheckCallContext(fcinfo, &aggcontext))
+		elog(ERROR, "tinyhist_accum_hist called in non-aggregate context");
+
+	/*
+	 * We want to skip NULL values altogether - we return either the existing
+	 * histogram (if it already exists) or NULL.
+	 */
+	if (PG_ARGISNULL(1))
+	{
+		if (PG_ARGISNULL(0))
+			PG_RETURN_NULL();
+
+		/* if there already is a state accumulated, don't forget it */
+		PG_RETURN_DATUM(PG_GETARG_DATUM(0));
+	}
+
+	/* if there's no histogram aggstate allocated, create it now */
+	if (PG_ARGISNULL(0))
+	{
+		MemoryContext	oldcontext;
+
+		oldcontext = MemoryContextSwitchTo(aggcontext);
+
+		state = palloc0(sizeof(tinyhist_t));
+
+		MemoryContextSwitchTo(oldcontext);
+	}
+	else
+		state = (tinyhist_t *) PG_GETARG_POINTER(0);
+
+	value = (tinyhist_t *) PG_GETARG_POINTER(1);
+
+	/* merge the two histograms into state */
+	state = hist_merge(state, value);
 
 	PG_RETURN_POINTER(state);
 }
@@ -679,9 +797,6 @@ tinyhist_add_hist(PG_FUNCTION_ARGS)
 	tinyhist_t	   *hist1;
 	tinyhist_t	   *hist2;
 
-	int				unit;
-	int				sample;
-
 	/* If both are NULL, return NULL. Otherwise return the non-NULL one. */
 	if (PG_ARGISNULL(0) || PG_ARGISNULL(1))
 	{
@@ -707,61 +822,8 @@ tinyhist_add_hist(PG_FUNCTION_ARGS)
 	hist1 = hist_copy(hist1);
 	hist2 = hist_copy(hist2);
 
-	/*
-	 * XXX Should we do this in a particular order? E.g. unit first and
-	 * then sample rate, or the other way around? Or it doesn't matter?
-	 */
-	sample = Max(hist1->sample, hist2->sample);
-
-	while (hist1->sample < sample)
-		hist_adjust_sample(hist1);
-
-	while (hist2->sample < sample)
-		hist_adjust_sample(hist2);
-
-	unit = Max(hist1->unit, hist2->unit);
-
-	while (hist1->unit < unit)
-		hist_adjust_unit(hist1);
-
-	while (hist2->unit < unit)
-		hist_adjust_unit(hist2);
-
-	Assert(hist1->sample == hist2->sample);
-	Assert(hist1->unit == hist2->unit);
-
-	/*
-	 * Now check we can merge the histograms, with all counts fitting into
-	 * the buckets. If not, adjust the sample once more.
-	 */
-	{
-		bool	adjust_sample = false;
-
-		for (int i = 0; i < HISTOGRAM_BUCKETS; i++)
-		{
-			int	cnt = bucket_get(hist1,i) + bucket_get(hist2,i);
-
-			if (cnt > bucket_maxcount(i))
-			{
-				adjust_sample = true;
-				break;
-			}
-		}
-
-		if (adjust_sample)
-		{
-			hist_adjust_sample(hist1);
-			hist_adjust_sample(hist2);
-		}
-	}
-
-	/* OK, time to do the merge */
-	for (int i = 0; i < HISTOGRAM_BUCKETS; i++)
-	{
-		int	cnt = bucket_get(hist1,i) + bucket_get(hist2,i);
-
-		bucket_set(hist1, i, cnt);
-	}
+	/* merge histograms (into hist1) */
+	hist1 = hist_merge(hist1, hist2);
 
 	/* return hist1 */
 	PG_RETURN_POINTER(hist1);

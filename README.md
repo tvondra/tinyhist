@@ -100,6 +100,13 @@ approximates the data distribution.
 Similarly to the unit range, the sample rate is encoded in 4 bits. That
 means the lowest sample rate is 1/32768.
 
+As the sample rate gets decreased, counters for buckets with few values
+may drop to 0, as if there were no values. The counters are small
+integers, with "1" as the lowest value, representing a bucket with
+`(1/sample_rate)` values. In other words, the `sample_rate` determines
+the accuracy of the histogram, i.e. the "delta" represented by counter
+increment.
+
 ***Note**: This may need some more thought. It means the smallest bucket
 can accept only ~8355840 values. For short queries this may not be
 enough. So maybe we should have one less bucket, and use the 8 bits for

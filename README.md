@@ -180,6 +180,70 @@ SELECT * FROM tinyhist_buckets((SELECT h FROM hist));
 ```
 
 
+## Functions
+
+### `tinyhist_add(hist, value)`
+
+Adds a value to `hist`, returning the modified histogram. `NULL` values
+are ignored. If the histogram is empty (`hist = NULL`), a new one is
+created.
+
+
+### `tinyhist_add(hist, values[])`
+
+Adds an array of value to `hist`, returning the modified histogram.
+`NULL` vaalues are ignored. If the histogram is empty (`hist = NULL`),
+a new one is created.
+
+
+### `tinyhist_info(hist)`
+
+Returns a record with information about the histogram `hist`. The output
+parameters are:
+
+* `hist_unit`      - size of the "unit" bucket (with index 0)
+* `hist_sample`    - sample rate of the histogram (1, ...)
+* `hist_count`     - number of values in histogram (all buckets)
+* `hist_upper`     - histogram range (upper boundary of last bucket)
+
+The `count` value is raw, i.e. it's a simple sum of bucket counters.
+It's not adjusted to account for sample rate.
+
+
+### `tinyhist_buckets(hist)`
+
+Returns a set of records with information about buckets of `hist`. The
+output parameters are:
+
+* `bucket_index`   - index of the bucket (0 .. 15)
+* `bucket_lower`   - lower boundary of the bucket
+* `bucket_upper`   - upper boundary of the bucket
+* `bucket_range`   - range (length) of the bucket (upper - lower)
+* `bucket_count`   - number of values in the bucket (raw, not adjusted)
+* `bucket_frac`    - fraction of values represented by bucket
+* `bucket_density` - density of values (fraction adjusted by range)
+
+The `count` value is raw, i.e. it's a the value of the counter, not
+adjusted to account for sample rate.
+
+
+### `tinyhist_agg(value)`
+
+An aggregate function, building a histogram from a set of values, as if
+calling `tinyhist_add()` in a loop (but more efficient).
+
+The function is parallel-safe, i.e. the histograms can be built by a
+parallel query.
+
+
+## Operators
+
+### `histogram + value` / `histogram + value[]`
+
+These operators are equivalent to functions `tinyhist_add(hist, value)`
+and `tinyhist_add(hist, values[])`.
+
+
 ## Notes
 
 At the moment, the extension only supports `double precision` values, but

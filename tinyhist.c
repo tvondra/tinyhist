@@ -39,7 +39,7 @@ PG_FUNCTION_INFO_V1(tinyhist_accum);
 PG_FUNCTION_INFO_V1(tinyhist_add);
 PG_FUNCTION_INFO_V1(tinyhist_add_array);
 PG_FUNCTION_INFO_V1(tinyhist_buckets);
-PG_FUNCTION_INFO_V1(tinyhist_count);
+PG_FUNCTION_INFO_V1(tinyhist_info);
 
 PG_FUNCTION_INFO_V1(tinyhist_in);
 PG_FUNCTION_INFO_V1(tinyhist_out);
@@ -51,7 +51,7 @@ Datum tinyhist_accum(PG_FUNCTION_ARGS);
 Datum tinyhist_add(PG_FUNCTION_ARGS);
 Datum tinyhist_add_array(PG_FUNCTION_ARGS);
 Datum tinyhist_buckets(PG_FUNCTION_ARGS);
-Datum tinyhist_count(PG_FUNCTION_ARGS);
+Datum tinyhist_info(PG_FUNCTION_ARGS);
 
 Datum tinyhist_in(PG_FUNCTION_ARGS);
 Datum tinyhist_out(PG_FUNCTION_ARGS);
@@ -663,15 +663,52 @@ tinyhist_combine(PG_FUNCTION_ARGS)
 	PG_RETURN_POINTER(dst);
 }
 
-Datum
-tinyhist_count(PG_FUNCTION_ARGS)
+static TupleDesc
+tinyhist_info_tupledesc(void)
 {
-	tinyhist_t  *hist = (tinyhist_t *) PG_GETARG_POINTER(0);
+	TupleDesc	tupdesc;
+	AttrNumber	a = 0;
 
-	/* FIXME */
-	PG_RETURN_INT64(hist->sample);
+	tupdesc = CreateTemplateTupleDesc(4);
+
+	TupleDescInitEntry(tupdesc, ++a, "hist_unit", INT4OID, -1, 0);
+	TupleDescInitEntry(tupdesc, ++a, "hist_sample", INT4OID, -1, 0);
+	TupleDescInitEntry(tupdesc, ++a, "hist_count", INT8OID, -1, 0);
+	TupleDescInitEntry(tupdesc, ++a, "hist_upper", INT8OID, -1, 0);
+
+	return BlessTupleDesc(tupdesc);
 }
 
+
+/*
+ * tinyhist_info
+ *		information about a single histogram
+ */
+Datum
+tinyhist_info(PG_FUNCTION_ARGS)
+{
+	tinyhist_t *hist = (tinyhist_t *) PG_GETARG_POINTER(0);
+	Datum		values[4];
+	bool		nulls[4] = {0};
+	int64		count = 0;
+	TupleDesc	tupdesc = tinyhist_info_tupledesc();
+
+	for (int i = 0; i < HISTOGRAM_BUCKETS; i++)
+		count += bucket_get(hist, i);
+
+	values[0] = Int32GetDatum(1 << hist->unit);
+	values[1] = Int32GetDatum(1 << hist->sample);
+	values[2] = Int64GetDatum(count);
+	values[3] = Int64GetDatum((1 << 15) * (1 << hist->unit));
+
+	PG_RETURN_DATUM(HeapTupleGetDatum(heap_form_tuple(tupdesc, values, nulls)));
+}
+
+
+/*
+ * tinyhist_buckets
+ *		information about buckets of a histogram
+ */
 Datum
 tinyhist_buckets(PG_FUNCTION_ARGS)
 {

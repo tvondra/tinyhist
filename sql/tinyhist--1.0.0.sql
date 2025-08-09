@@ -68,7 +68,30 @@ CREATE AGGREGATE tinyhist_agg(double precision) (
     PARALLEL = SAFE
 );
 
-CREATE OR REPLACE FUNCTION tinyhist_buckets(hist tinyhist, out bucket_index int, out bucket_lower double precision, out bucket_upper double precision, out bucket_range double precision, out bucket_count double precision, out bucket_frac double precision, out bucket_density double precision)
+-- information about a histogram
+CREATE OR REPLACE FUNCTION tinyhist_info(
+  in  hist tinyhist,					-- input histogram
+  out hist_unit int,					-- size of "unit" range
+  out hist_sample_rate int,				-- sampled fraction of values
+  out hist_count bigint,				-- number of values in buckets
+  out hist_upper bigint					-- histogram upper boundary
+)
+    RETURNS record
+    AS 'tinyhist', 'tinyhist_info'
+    LANGUAGE C IMMUTABLE STRICT;
+
+
+-- information about buckets of a histogram
+CREATE OR REPLACE FUNCTION tinyhist_buckets(
+  in  hist tinyhist,					-- input histogram
+  out bucket_index int,					-- bucket index (0 .. 15)
+  out bucket_lower double precision,	-- bucket lower boundary
+  out bucket_upper double precision,	-- bucket upper boundary
+  out bucket_range double precision,	-- range (upper - lower)
+  out bucket_count double precision,	-- number of values in bucket
+  out bucket_frac double precision,		-- fraction of the total
+  out bucket_density double precision	-- density (fraction / range)
+)
     RETURNS SETOF record
     AS 'tinyhist', 'tinyhist_buckets'
     LANGUAGE C IMMUTABLE STRICT;

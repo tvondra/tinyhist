@@ -1,0 +1,69 @@
+CREATE TABLE tinyhist_update_test (h tinyhist);
+
+-- one empty histogram
+INSERT INTO tinyhist_update_test VALUES (NULL);
+
+-- add values 1 to 10000 in monotonic order
+DO $$
+DECLARE i INTEGER;
+BEGIN
+    FOR i IN 1..10000 LOOP
+        UPDATE tinyhist_update_test SET h = h + i;
+    END LOOP;
+END$$;
+
+SELECT * FROM tinyhist_update_test;
+
+-- now do the same thing, but randomize the order
+-- we expect this to produce exactly the same histogram as for monotonic data
+TRUNCATE tinyhist_update_test;
+INSERT INTO tinyhist_update_test VALUES (NULL);
+
+DO $$
+DECLARE r RECORD;
+BEGIN
+    FOR r IN SELECT i FROM generate_series(1,10000) s(i) ORDER BY random() LOOP
+        UPDATE tinyhist_update_test SET h = h + r.i;
+    END LOOP;
+END$$;
+
+SELECT * FROM tinyhist_update_test;
+
+-- now do the same thing, but randomize the order and accumulate the data
+-- into small arrays first
+-- we expect this to produce exactly the same histogram as for monotonic data
+TRUNCATE tinyhist_update_test;
+INSERT INTO tinyhist_update_test VALUES (NULL);
+
+DO $$
+DECLARE
+  r RECORD;
+  v INTEGER[];
+BEGIN
+
+    -- empty array
+    v := NULL;
+
+    FOR r IN SELECT i FROM generate_series(1,10000) s(i) ORDER BY random() LOOP
+
+        -- add the value to the small array
+        v := array_append(v, r.i);
+
+        -- randomly merge the array into the histogram, ~10% of the time
+        IF random() < 0.1 THEN
+            UPDATE tinyhist_update_test SET h = h + v;
+            v := NULL;
+        END IF;
+
+    END LOOP;
+
+    -- merge the last array
+    IF v IS NOT NULL THEN
+        UPDATE tinyhist_update_test SET h = h + v;
+    END IF;
+
+END$$;
+
+SELECT * FROM tinyhist_update_test;
+
+DROP TABLE tinyhist_update_test;

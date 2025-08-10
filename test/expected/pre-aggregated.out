@@ -1,0 +1,19 @@
+\set ECHO all
+/* aggregate pre-aggregated histograms */
+CREATE TABLE tinyhist_test (h tinyhist);
+INSERT INTO tinyhist_test SELECT tinyhist_agg(i) FROM generate_series(1,10000) s(i) GROUP BY (random() * 10)::int;
+SELECT tinyhist_agg(h) FROM tinyhist_test;
+                                tinyhist_agg                                 
+-----------------------------------------------------------------------------
+ {0, 0, 1, 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 1808, 0}
+(1 row)
+
+TRUNCATE TABLE tinyhist_test;
+INSERT INTO tinyhist_test SELECT tinyhist_agg(i * 10) FROM generate_series(1,10000) s(i) GROUP BY (random() * 10)::int;
+SELECT tinyhist_agg(h) FROM tinyhist_test;
+                                tinyhist_agg                                
+----------------------------------------------------------------------------
+ {0, 2, 0, 0, 1, 2, 3, 6, 13, 26, 51, 102, 205, 410, 819, 1638, 3277, 3447}
+(1 row)
+
+DROP TABLE tinyhist_test;
